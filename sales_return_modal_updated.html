@@ -1,0 +1,42 @@
+<!-- Updated Sales Return Modal for multiple product and batch selection -->
+<div  class="modal fade" id="addSalesReturnModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="addSalesReturnForm">
+        <div class="modal-header">
+          <h5 class="modal-title text-success">New Sales Return</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-2">
+            <label>Invoice #</label>
+            <select id="srInvoice" class="form-select" required>
+              <!-- Invoices will load dynamically -->
+            </select>
+          </div>
+          <div class="mb-2">
+            <label>Customer</label>
+            <input type="text" id="srCustomer" class="form-control" readonly>
+          </div>
+          <div class="mb-2">
+            <label>Product(s) and Batch(es)</label>
+            <div id="srProductContainer" class="border rounded p-2" style="max-height: 200px; overflow-y: auto;">
+              <!-- Product checkboxes and batch checkboxes will be dynamically rendered here -->
+            </div>
+          </div>
+          <div class="mb-2">
+            <label>Reason</label>
+            <textarea id="srReason" class="form-control" rows="2" required></textarea>
+          </div>
+          <div class="mb-2">
+            <label>Return Amount</label>
+            <input type="number" id="srAmount" class="form-control" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-success">Save Return</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

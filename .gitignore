@@ -1,0 +1,11 @@
+node_modules
+
+# Electron / release output (large binaries — build locally or CI)
+dist/
+out/
+*.asar
+
+# Secrets — use .env.example only in repo
+.env
+.env.local
+.env.*.local

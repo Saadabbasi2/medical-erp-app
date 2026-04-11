@@ -1,0 +1,111 @@
+{
+  "name": "medical-erp-app",
+  "version": "1.0.0",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:linux": "electron-builder --linux",
+    "init-db": "node init-database.js",
+    "import-customers": "node scripts/import-customers-from-sqlserver.js",
+    "import-customers-csv": "node scripts/import-customers-from-csv.js",
+    "import-companies-csv": "node scripts/import-companies-from-csv.js",
+    "import-items-csv": "node scripts/import-items-from-csv.js",
+    "import-dms-items-csv": "node scripts/import-dms-items-from-csv.js",
+    "import-dms-managers-csv": "node scripts/import-dms-managers-from-csv.js",
+    "update-dms-items-strength": "node scripts/update-dms-items-strength-from-companies.js",
+    "update-company-managers": "node scripts/update-company-managers-from-dms.js",
+    "import-stock-adjustments-csv": "node scripts/import-stock-adjustments-from-csv.js"
+  },
+  "build": {
+    "appId": "com.faizanmedicine.erp",
+    "productName": "Medical ERP",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*",
+      "!node_modules/**/*",
+      "node_modules/**/*"
+    ],
+    "asarUnpack": [
+      "server.js",
+      "routes/**/*",
+      "models/**/*",
+      "utils/**/*",
+      "middleware/**/*",
+      "data/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "data",
+        "to": "data",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "assets",
+        "to": "assets",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/logo.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/logo.png",
+      "category": "Office"
+    }
+  },
+  "devDependencies": {
+    "electron": "^38.1.1",
+    "electron-builder": "^24.13.3"
+  },
+  "dependencies": {
+    "body-parser": "^2.2.0",
+    "cors": "^2.8.5",
+    "csv-parser": "^3.2.0",
+    "csv-writer": "^1.6.0",
+    "dotenv": "^17.2.3",
+    "exceljs": "^4.4.0",
+    "express": "^5.1.0",
+    "fs-extra": "^11.3.2",
+    "json2csv": "^6.0.0-alpha.2",
+    "jspdf": "^3.0.3",
+    "jspdf-autotable": "^5.0.2",
+    "mongodb": "^7.0.0",
+    "mongoose": "^8.19.3",
+    "msnodesqlv8": "^5.1.1",
+    "mssql": "^12.2.0",
+    "multer": "^2.0.2",
+    "mysql2": "^3.16.3",
+    "nodemailer": "^7.0.10",
+    "pdfkit": "^0.17.2"
+  }
+}

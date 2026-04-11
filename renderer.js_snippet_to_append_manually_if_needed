@@ -1,0 +1,13 @@
+
+// Load POs for caching (moved to global scope)
+async function loadCachedPurchaseOrders() {
+  try {
+    const res = await fetch(`${API_BASE}/api/purchase-orders`);
+    cachedPurchaseOrders = await res.json();
+    if (!Array.isArray(cachedPurchaseOrders)) cachedPurchaseOrders = [];
+    console.log('📦 Loaded Purchase Orders:', cachedPurchaseOrders.length);
+  } catch (err) {
+    console.error('Failed to load POs', err);
+    cachedPurchaseOrders = [];
+  }
+}
