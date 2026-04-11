@@ -1,0 +1,1 @@
+- [x] Modify main_screen.dart to hide ProfileBar on Reports and History screens

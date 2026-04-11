@@ -1,0 +1,15 @@
+{
+  "version": "1.0",
+  "lastSync": "2025-11-08T00:00:00.000Z",
+  "settings": {
+    "backupEnabled": true,
+    "backupInterval": "24h",
+    "autoSync": true
+  },
+  "statistics": {
+    "totalItems": 0,
+    "totalCustomers": 0,
+    "totalSales": 0,
+    "lastBackup": null
+  }
+}
