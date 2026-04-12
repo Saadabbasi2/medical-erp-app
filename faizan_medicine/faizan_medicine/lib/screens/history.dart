@@ -112,25 +112,59 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   return Card(
                     color: const Color(0xFF161B22),
                     margin: const EdgeInsets.only(bottom: 12),
-                    child: ListTile(
-                      leading: _iconForModule(module),
-                      title: Text(
-                        action,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w500,
-                        ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
                       ),
-                      subtitle: Text(
-                        module,
-                        style: const TextStyle(color: Colors.white54),
-                      ),
-                      trailing: Text(
-                        timeLabel,
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 12,
-                        ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: _iconForModule(module),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  action,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 15,
+                                  ),
+                                  softWrap: true,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  module,
+                                  style: const TextStyle(
+                                    color: Colors.white54,
+                                    fontSize: 13,
+                                  ),
+                                  softWrap: true,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 108),
+                            child: Text(
+                              timeLabel,
+                              textAlign: TextAlign.end,
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 11,
+                                height: 1.25,
+                              ),
+                              softWrap: true,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   );

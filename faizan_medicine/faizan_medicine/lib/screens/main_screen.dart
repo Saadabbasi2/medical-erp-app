@@ -37,6 +37,15 @@ class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
   // We now use OrderService (provided at app root) to get live stats.
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<OrderService>().loadInitialData();
+    });
+  }
+
   void _openManageOrders() {
     final orderService = Provider.of<OrderService>(context, listen: false);
     showModalBottomSheet(
@@ -81,31 +90,115 @@ class _MainScreenState extends State<MainScreen> {
                         separatorBuilder: (_, __) => const SizedBox(height: 8),
                         itemBuilder: (_, i) {
                           final o = orders[i];
+                          final isDelivered = o.status == 'delivered';
+                          final isNotDelivered = o.status == 'not_delivered';
+                          final isPending = !isDelivered && !isNotDelivered;
                           return GlassCard(
                             padding: const EdgeInsets.all(12),
                             child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(o.customerName, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                                      if (o.route.isNotEmpty) ...[
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Route: ${o.route}',
+                                          style: const TextStyle(color: Colors.black45, fontSize: 12),
+                                        ),
+                                      ],
                                       const SizedBox(height: 6),
                                       Text('Amount: ${o.amount.toStringAsFixed(2)}', style: const TextStyle(color: Colors.black54, fontSize: 13)),
+                                      if (isDelivered)
+                                        const Padding(
+                                          padding: EdgeInsets.only(top: 6),
+                                          child: Text(
+                                            'Delivered — status is final.',
+                                            style: TextStyle(color: Colors.green, fontSize: 11),
+                                          ),
+                                        )
+                                      else if (isNotDelivered)
+                                        const Padding(
+                                          padding: EdgeInsets.only(top: 6),
+                                          child: Text(
+                                            'Not delivered — status is final.',
+                                            style: TextStyle(color: Colors.deepOrange, fontSize: 11),
+                                          ),
+                                        ),
                                     ],
                                   ),
                                 ),
                                 const SizedBox(width: 8),
-                                Text(o.status, style: TextStyle(color: o.status == 'delivered' ? Colors.green : Colors.orange)),
-                                const SizedBox(width: 8),
-                                if (o.status != 'delivered')
-                                  IconButton(
-                                    icon: const Icon(Icons.check_circle, color: Colors.green),
-                                    onPressed: () => orderService.markDelivered(o.id),
-                                  ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete, color: Colors.redAccent),
-                                  onPressed: () => orderService.deleteOrder(o.id),
+                                Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      o.status,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: isDelivered
+                                            ? Colors.green
+                                            : isNotDelivered
+                                                ? Colors.deepOrange
+                                                : Colors.orange,
+                                      ),
+                                    ),
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        if (isPending)
+                                          IconButton(
+                                            icon: const Icon(Icons.check_circle, color: Colors.green),
+                                            tooltip: 'Mark delivered',
+                                            onPressed: () async {
+                                              try {
+                                                await svc.markDelivered(o.id);
+                                              } catch (e) {
+                                                if (ctx.mounted) {
+                                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                                    SnackBar(content: Text('Could not update: $e')),
+                                                  );
+                                                }
+                                              }
+                                            },
+                                          ),
+                                        if (isPending)
+                                          IconButton(
+                                            icon: const Icon(Icons.cancel, color: Colors.redAccent),
+                                            tooltip: 'Mark not delivered',
+                                            onPressed: () async {
+                                              try {
+                                                await svc.markNotDelivered(o.id);
+                                              } catch (e) {
+                                                if (ctx.mounted) {
+                                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                                    SnackBar(content: Text('Could not update: $e')),
+                                                  );
+                                                }
+                                              }
+                                            },
+                                          ),
+                                        IconButton(
+                                          icon: const Icon(Icons.delete, color: Colors.redAccent),
+                                          tooltip: 'Delete',
+                                          onPressed: () async {
+                                            try {
+                                              await svc.deleteOrder(o.id);
+                                            } catch (e) {
+                                              if (ctx.mounted) {
+                                                ScaffoldMessenger.of(ctx).showSnackBar(
+                                                  SnackBar(content: Text('Could not delete: $e')),
+                                                );
+                                              }
+                                            }
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
@@ -273,8 +366,10 @@ class _MainScreenState extends State<MainScreen> {
   Widget _buildHomeScreen() {
     final orderService = Provider.of<OrderService>(context);
     final isLoading = orderService.isLoading;
-    final salesMainValue = isLoading ? 'Loading...' : formatPKR(orderService.totalSales);
-    final ordersMainValue = isLoading ? 'Loading...' : orderService.totalOrders.toString();
+    final salesMainValue =
+        isLoading ? '…' : formatPKR(orderService.totalDeliveredAmount);
+    final ordersMainValue =
+        isLoading ? '…' : orderService.totalOrders.toString();
     final deliveredCount = orderService.deliveredCount;
     final pendingCount = orderService.pendingCount;
     return SingleChildScrollView(
@@ -296,7 +391,7 @@ class _MainScreenState extends State<MainScreen> {
               children: [
                 _enhancedOverviewCard(
                   icon: Icons.attach_money,
-                  title: "Sales",
+                  title: 'Delivered',
                   mainValue: salesMainValue,
                   delivered: deliveredCount,
                   notDelivered: pendingCount,
@@ -304,7 +399,7 @@ class _MainScreenState extends State<MainScreen> {
                 const SizedBox(width: 10),
                 _enhancedOverviewCard(
                   icon: Icons.shopping_cart,
-                  title: "Orders",
+                  title: 'Orders',
                   mainValue: ordersMainValue,
                   delivered: deliveredCount,
                   notDelivered: pendingCount,
@@ -448,10 +543,12 @@ class _MainScreenState extends State<MainScreen> {
                   context,
                   Icons.receipt_long,
                   "Sale Order",
-                  const SaleOrderScreen(),
+                  SaleOrderScreen(
+                    sessionUserName: widget.userName,
+                    sessionEmail: widget.userEmail,
+                  ),
                   Colors.green,
-                  // When opening SaleOrderScreen
-            ),
+                ),
                 _moduleTile(
                   context,
                   Icons.today,

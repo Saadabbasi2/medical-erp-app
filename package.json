@@ -1,6 +1,8 @@
 {
   "name": "medical-erp-app",
   "version": "1.0.0",
+  "description": "Medical ERP desktop application (Electron + Node backend).",
+  "author": "Saad Abbasi",
   "main": "main.js",
   "scripts": {
     "start": "electron .",

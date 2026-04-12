@@ -103,7 +103,9 @@ class ApiStorageService {
       if (sid == null || sid.isEmpty) return [];
 
       final uri = Uri.parse('$_serverBase/api/salesman-orders?salesmanId=$sid');
-      final response = await http.get(uri);
+      final response = await http
+          .get(uri)
+          .timeout(const Duration(seconds: 25));
       if (response.statusCode == 200) {
         final data = json.decode(response.body) as List<dynamic>;
         final raw = data.map((o) => Map<String, dynamic>.from(o)).toList();

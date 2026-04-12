@@ -20,7 +20,8 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => OrderService()..loadInitialData(),
+      // Orders load after login in MainScreen (salesmanId required).
+      create: (_) => OrderService(),
       child: MaterialApp(
         title: 'Faizan Medicine',
         debugShowCheckedModeBanner: false,

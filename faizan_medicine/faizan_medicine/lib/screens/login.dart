@@ -66,7 +66,12 @@ class _LoginScreenState extends State<LoginScreen> {
           }
           
           try {
-            await UserDataService.saveUserData(userName, email);
+            final erpName = (userData?['name'] ?? '').toString().trim();
+            await UserDataService.saveUserData(
+              userName,
+              email,
+              salesmanName: erpName.isEmpty ? null : erpName,
+            );
           } catch (e) {
             debugPrint('Error saving user data: $e');
           }

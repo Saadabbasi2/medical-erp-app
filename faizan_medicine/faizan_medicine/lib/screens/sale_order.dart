@@ -1,17 +1,63 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:pdf/widgets.dart' as pw;
+import 'package:provider/provider.dart';
 
 import '../services/api_storage_service.dart';
+import '../services/order_service.dart';
+import '../services/user_data_service.dart';
 import '../utils/format_utils.dart';
 import '../utils/pdf_saver.dart';
+import '../utils/sale_order_pdf_builder.dart';
 import 'history.dart';
 import 'reports.dart';
 import 'settings.dart';
 
+Widget _orderStatusBanner({
+  required IconData icon,
+  required Color iconColor,
+  required Color borderColor,
+  required Color backgroundColor,
+  required String message,
+}) {
+  return Container(
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+    decoration: BoxDecoration(
+      color: backgroundColor,
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: borderColor),
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: iconColor, size: 22),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            message,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 12.5,
+              height: 1.4,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
 class SaleOrderScreen extends StatefulWidget {
-  const SaleOrderScreen({super.key});
+  /// Login session: same as home "Welcome" name (email local-part), e.g. [saad].
+  final String? sessionUserName;
+  final String? sessionEmail;
+
+  const SaleOrderScreen({
+    super.key,
+    this.sessionUserName,
+    this.sessionEmail,
+  });
 
   @override
   State<SaleOrderScreen> createState() => _SaleOrderScreenState();
@@ -50,7 +96,9 @@ class _SaleOrderScreenState extends State<SaleOrderScreen> {
   Future<void> _loadOrders() async {
     try {
       final orders = await ApiStorageService.loadSaleOrders();
+      if (!mounted) return;
       setState(() => _orders = orders);
+      context.read<OrderService>().replaceOrdersFromApiJson(orders);
     } catch (e) {
       print('Error loading sale orders: $e');
     }
@@ -82,79 +130,41 @@ class _SaleOrderScreenState extends State<SaleOrderScreen> {
 
   Future<void> _generateAndOpenPDF(Map<String, dynamic> order) async {
     try {
-      final pdf = pw.Document();
-      final orderId = order['id'] ?? 'order';
-      final customer = order['customer_name'] ?? '';
-      final status = order['delivery_status'] ?? 'pending';
-      final total = order['total'] ?? 0;
-      final createdAt = order['created_at'] ?? '';
-      final deliveryDate = order['delivery_date'] ?? '';
+      final user = await UserDataService.loadUserData();
+      final erpName = (user['salesmanName'] ?? '').toString().trim();
+      final emailFromStore = (user['email'] ?? '').toString();
+      final email = (widget.sessionEmail != null &&
+              widget.sessionEmail!.trim().isNotEmpty)
+          ? widget.sessionEmail!.trim()
+          : emailFromStore;
 
-      pdf.addPage(
-        pw.Page(
-          build: (pw.Context context) => pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Text(
-                'Sale Order Details',
-                style: pw.TextStyle(
-                  fontSize: 24,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-              pw.SizedBox(height: 12),
-              pw.Text(
-                'Order ID: $orderId',
-                style: const pw.TextStyle(fontSize: 16),
-              ),
-              pw.Text(
-                'Customer: $customer',
-                style: const pw.TextStyle(fontSize: 16),
-              ),
-              pw.Text(
-                'Status: $status',
-                style: const pw.TextStyle(fontSize: 16),
-              ),
-              pw.Text(
-                'Total Amount: ${formatPKR(total)}',
-                style: const pw.TextStyle(fontSize: 16),
-              ),
-              pw.Text(
-                'Created: $createdAt',
-                style: const pw.TextStyle(fontSize: 12),
-              ),
-              if (deliveryDate.isNotEmpty)
-                pw.Text(
-                  'Delivery Date: $deliveryDate',
-                  style: const pw.TextStyle(fontSize: 12),
-                ),
-              pw.SizedBox(height: 16),
-              pw.Text(
-                'Items:',
-                style: pw.TextStyle(
-                  fontSize: 18,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-              pw.SizedBox(height: 8),
-              if ((order['items'] as List<dynamic>?)?.isNotEmpty ?? false)
-                ...((order['items'] as List).map(
-                  (it) => pw.Bullet(
-                    text:
-                        '${it['name']} - Qty: ${it['quantity']} - Price: ${formatPKR(it['price'])}',
-                  ),
-                ))
-              else
-                pw.Text(
-                  'No item details',
-                  style: const pw.TextStyle(fontSize: 12),
-                ),
-            ],
-          ),
-        ),
+      String salesmanDisplay = erpName;
+      if (salesmanDisplay.isEmpty) {
+        final s = widget.sessionUserName?.trim();
+        if (s != null && s.isNotEmpty) {
+          salesmanDisplay = s;
+        }
+      }
+      if (salesmanDisplay.isEmpty && email.contains('@')) {
+        salesmanDisplay = email.split('@').first;
+      }
+      if (salesmanDisplay.isEmpty) {
+        salesmanDisplay = (user['username'] ?? '').toString();
+      }
+      if ((salesmanDisplay.isEmpty || salesmanDisplay == 'User') &&
+          email.contains('@')) {
+        salesmanDisplay = email.split('@').first;
+      }
+      if (salesmanDisplay.isEmpty) {
+        salesmanDisplay = 'Salesman';
+      }
+
+      final bytes = await SaleOrderPdfBuilder.build(
+        order: order,
+        salesmanDisplay: salesmanDisplay,
+        salesmanEmail: email,
       );
-
-      final bytes = await pdf.save();
+      final orderId = order['id'] ?? 'order';
       final filename = '$orderId.pdf';
       try {
         await savePdf(bytes, filename);
@@ -436,9 +446,14 @@ class _SaleOrderScreenState extends State<SaleOrderScreen> {
               itemBuilder: (context, index) {
                 final order = _orders[index];
                 final orderId = order['id'] ?? 'N/A';
-                final status = order['delivery_status'] ?? 'pending';
+                final statusRaw =
+                    (order['delivery_status'] ?? 'pending').toString();
+                final isDelivered = statusRaw == 'delivered';
+                final isNotDelivered = statusRaw == 'not_delivered';
+                final isPending = !isDelivered && !isNotDelivered;
                 final total = order['total'] ?? 0;
                 final customer = order['customer_name'] ?? '';
+                final route = (order['route'] ?? '').toString();
 
                 return Card(
                   color: const Color(0xFF161B22),
@@ -446,134 +461,283 @@ class _SaleOrderScreenState extends State<SaleOrderScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   margin: const EdgeInsets.only(bottom: 12),
-                  child: ListTile(
-                    leading: const Icon(
-                      Icons.receipt_long,
-                      color: Colors.greenAccent,
-                    ),
-                    title: Text(
-                      orderId,
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                    subtitle: Text(
-                      'Customer: $customer\nStatus: $status',
-                      style: const TextStyle(color: Colors.white54),
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 12, 4, 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Text(
-                          formatPKR(total),
-                          style: const TextStyle(color: Colors.white70),
-                        ),
-                        IconButton(
-                          icon: const Icon(
-                            Icons.check,
-                            color: Colors.greenAccent,
-                          ),
-                          onPressed: () async {
-                            final id = order['id']?.toString() ?? '';
-                            final date = DateTime.now().toIso8601String();
-                            await ApiStorageService.updateSaleOrderStatusById(
-                              id,
-                              'delivered',
-                              deliveryDate: date,
-                            );
-                            await _loadOrders();
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Order marked delivered'),
-                                ),
-                              );
-                            }
-                          },
-                        ),
-                        IconButton(
-                          icon: const Icon(
-                            Icons.close,
-                            color: Colors.redAccent,
-                          ),
-                          onPressed: () async {
-                            final id = order['id']?.toString() ?? '';
-                            await ApiStorageService.updateSaleOrderStatusById(
-                              id,
-                              'not_delivered',
-                              deliveryDate: DateTime.now().toIso8601String(),
-                            );
-                            await _loadOrders();
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Order marked not delivered'),
-                                ),
-                              );
-                            }
-                          },
-                        ),
-                        IconButton(
-                          icon: const Icon(
-                            Icons.picture_as_pdf,
-                            color: Colors.blueAccent,
-                          ),
-                          onPressed: () => _generateAndOpenPDF(order),
-                        ),
-                        IconButton(
-                          icon: const Icon(
-                            Icons.delete,
-                            color: Colors.redAccent,
-                          ),
-                          onPressed: () async {
-                            final confirmed = await showDialog<bool>(
-                              context: context,
-                              builder: (context) => AlertDialog(
-                                backgroundColor: const Color(0xFF161B22),
-                                title: const Text(
-                                  'Delete Order',
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                                content: const Text(
-                                  'Are you sure you want to delete this order?',
-                                  style: TextStyle(color: Colors.white70),
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () =>
-                                        Navigator.of(context).pop(false),
-                                    child: const Text(
-                                      'Cancel',
-                                      style: TextStyle(color: Colors.white70),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Padding(
+                              padding: EdgeInsets.only(top: 2),
+                              child: Icon(
+                                Icons.receipt_long,
+                                color: Colors.greenAccent,
+                                size: 28,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    orderId,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 16,
                                     ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                  TextButton(
-                                    onPressed: () =>
-                                        Navigator.of(context).pop(true),
-                                    child: const Text(
-                                      'Delete',
-                                      style: TextStyle(color: Colors.redAccent),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'Customer: $customer',
+                                    style: const TextStyle(
+                                      color: Colors.white54,
+                                      fontSize: 14,
+                                      height: 1.35,
                                     ),
+                                    softWrap: true,
                                   ),
+                                  if (route.isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Route: $route',
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 14,
+                                        height: 1.35,
+                                      ),
+                                      softWrap: true,
+                                    ),
+                                  ],
+                                  const SizedBox(height: 8),
+                                  if (isDelivered)
+                                    _orderStatusBanner(
+                                      icon: Icons.check_circle,
+                                      iconColor: Colors.greenAccent,
+                                      borderColor: Colors.greenAccent
+                                          .withOpacity(0.45),
+                                      backgroundColor: const Color(0xFF0D2B18),
+                                      message:
+                                          'This order has been delivered. '
+                                          'You cannot change or cancel this status here — only PDF or delete.',
+                                    )
+                                  else if (isNotDelivered)
+                                    _orderStatusBanner(
+                                      icon: Icons.cancel_outlined,
+                                      iconColor: Colors.orangeAccent,
+                                      borderColor: Colors.orangeAccent
+                                          .withOpacity(0.45),
+                                      backgroundColor: const Color(0xFF2B1F0D),
+                                      message:
+                                          'This order has not been delivered. '
+                                          'Status is final — only PDF or delete.',
+                                    )
+                                  else
+                                    Text(
+                                      'Status: Pending — tap ✓ when delivered '
+                                      'or ✗ if not delivered.',
+                                      style: const TextStyle(
+                                        color: Colors.white54,
+                                        fontSize: 13,
+                                        height: 1.35,
+                                      ),
+                                      softWrap: true,
+                                    ),
                                 ],
                               ),
-                            );
-                            if (confirmed == true) {
-                              await ApiStorageService.deleteSaleOrder(
-                                index,
-                              );
-                              await _loadOrders();
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Order deleted'),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                formatPKR(total),
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 15,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Wrap(
+                              alignment: WrapAlignment.end,
+                              spacing: 0,
+                              runSpacing: 0,
+                              children: [
+                                if (isPending)
+                                  IconButton(
+                                    constraints: const BoxConstraints(
+                                      minWidth: 40,
+                                      minHeight: 40,
+                                    ),
+                                    padding: EdgeInsets.zero,
+                                    icon: const Icon(
+                                      Icons.check,
+                                      color: Colors.greenAccent,
+                                      size: 22,
+                                    ),
+                                    tooltip: 'Mark delivered',
+                                    onPressed: () async {
+                                      final id = order['id']?.toString() ?? '';
+                                      final date =
+                                          DateTime.now().toIso8601String();
+                                      await ApiStorageService
+                                          .updateSaleOrderStatusById(
+                                        id,
+                                        'delivered',
+                                        deliveryDate: date,
+                                      );
+                                      await _loadOrders();
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'Order marked as delivered',
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    },
                                   ),
-                                );
-                              }
-                            }
-                          },
+                                if (isPending)
+                                  IconButton(
+                                    constraints: const BoxConstraints(
+                                      minWidth: 40,
+                                      minHeight: 40,
+                                    ),
+                                    padding: EdgeInsets.zero,
+                                    icon: const Icon(
+                                      Icons.close,
+                                      color: Colors.redAccent,
+                                      size: 22,
+                                    ),
+                                    tooltip: 'Mark not delivered',
+                                    onPressed: () async {
+                                      final id = order['id']?.toString() ?? '';
+                                      await ApiStorageService
+                                          .updateSaleOrderStatusById(
+                                        id,
+                                        'not_delivered',
+                                        deliveryDate:
+                                            DateTime.now().toIso8601String(),
+                                      );
+                                      await _loadOrders();
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'Order marked as not delivered',
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    },
+                                  ),
+                                IconButton(
+                                  constraints: const BoxConstraints(
+                                    minWidth: 40,
+                                    minHeight: 40,
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                  icon: const Icon(
+                                    Icons.picture_as_pdf,
+                                    color: Colors.blueAccent,
+                                    size: 22,
+                                  ),
+                                  tooltip: 'PDF',
+                                  onPressed: () =>
+                                      _generateAndOpenPDF(order),
+                                ),
+                                IconButton(
+                                  constraints: const BoxConstraints(
+                                    minWidth: 40,
+                                    minHeight: 40,
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                  icon: const Icon(
+                                    Icons.delete,
+                                    color: Colors.redAccent,
+                                    size: 22,
+                                  ),
+                                  tooltip: 'Delete',
+                                  onPressed: () async {
+                                    final confirmed = await showDialog<bool>(
+                                      context: context,
+                                      builder: (context) => AlertDialog(
+                                        backgroundColor:
+                                            const Color(0xFF161B22),
+                                        title: const Text(
+                                          'Delete Order',
+                                          style: TextStyle(color: Colors.white),
+                                        ),
+                                        content: const Text(
+                                          'This permanently removes the order from your list. '
+                                          'It will only appear again when the office assigns a new booking to you.',
+                                          style: TextStyle(
+                                            color: Colors.white70,
+                                            height: 1.35,
+                                          ),
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.of(context)
+                                                    .pop(false),
+                                            child: const Text(
+                                              'Cancel',
+                                              style: TextStyle(
+                                                color: Colors.white70,
+                                              ),
+                                            ),
+                                          ),
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.of(context)
+                                                    .pop(true),
+                                            child: const Text(
+                                              'Delete',
+                                              style: TextStyle(
+                                                color: Colors.redAccent,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                    if (confirmed == true) {
+                                      await ApiStorageService.deleteSaleOrder(
+                                        index,
+                                      );
+                                      await _loadOrders();
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Order deleted'),
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                    isThreeLine: true,
                   ),
                 );
               },

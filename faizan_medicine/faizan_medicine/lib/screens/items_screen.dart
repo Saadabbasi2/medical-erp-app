@@ -652,6 +652,10 @@ class _ItemsScreenState extends State<ItemsScreen> {
                     ),
                     margin: const EdgeInsets.only(bottom: 12),
                     child: ExpansionTile(
+                      tilePadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 4,
+                      ),
                       leading: const Icon(
                         Icons.inventory_2,
                         color: Colors.blueAccent,
@@ -659,49 +663,79 @@ class _ItemsScreenState extends State<ItemsScreen> {
                       title: Text(
                         item['name'] ?? '',
                         style: const TextStyle(color: Colors.white),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      subtitle: Text(
-                        'Category: ${item['category'] ?? ''}',
-                        style: const TextStyle(color: Colors.white54),
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                'Rs ${(item['price'] is num ? item['price'] : double.tryParse(item['price'].toString()) ?? 0.0).toStringAsFixed(2)}',
-                                style: const TextStyle(
-                                  color: Colors.white70,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text(
-                                'Qty: ${item['quantity']}',
-                                style: const TextStyle(
-                                  color: Colors.white54,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                          IconButton(
-                            icon: const Icon(
-                              Icons.edit,
-                              color: Colors.blueAccent,
+                      subtitle: Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Category: ${item['category'] ?? ''}',
+                              style: const TextStyle(color: Colors.white54),
+                              softWrap: true,
                             ),
-                            onPressed: () => _editItem(index),
-                          ),
-                          IconButton(
-                            icon: const Icon(
-                              Icons.delete,
-                              color: Colors.redAccent,
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    'Rs ${(item['price'] is num ? item['price'] : double.tryParse(item['price'].toString()) ?? 0.0).toStringAsFixed(2)}',
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                Text(
+                                  'Qty: ${item['quantity']}',
+                                  style: const TextStyle(
+                                    color: Colors.white54,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
                             ),
-                            onPressed: () => _deleteItem(index),
-                          ),
-                        ],
+                            const SizedBox(height: 8),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Wrap(
+                                spacing: 4,
+                                children: [
+                                  IconButton(
+                                    constraints: const BoxConstraints(
+                                      minWidth: 44,
+                                      minHeight: 40,
+                                    ),
+                                    padding: EdgeInsets.zero,
+                                    icon: const Icon(
+                                      Icons.edit,
+                                      color: Colors.blueAccent,
+                                      size: 22,
+                                    ),
+                                    onPressed: () => _editItem(index),
+                                  ),
+                                  IconButton(
+                                    constraints: const BoxConstraints(
+                                      minWidth: 44,
+                                      minHeight: 40,
+                                    ),
+                                    padding: EdgeInsets.zero,
+                                    icon: const Icon(
+                                      Icons.delete,
+                                      color: Colors.redAccent,
+                                      size: 22,
+                                    ),
+                                    onPressed: () => _deleteItem(index),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                       children: [
                         Padding(

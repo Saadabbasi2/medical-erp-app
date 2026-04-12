@@ -73,6 +73,7 @@ flutter:
 
   assets:
     - assets/images/manager_123.png
+    - assets/images/faizan_logo.png
     - assets/data/items.json
     - assets/data/customers.json
     - assets/data/sale_orders.json

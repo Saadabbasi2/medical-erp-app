@@ -456,53 +456,111 @@ class _CustomersScreenState extends State<CustomersScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   margin: const EdgeInsets.only(bottom: 12),
-                  child: ListTile(
+                  child: InkWell(
                     onTap: () => _showCustomerDetails(index),
-                    leading: const CircleAvatar(
-                      backgroundColor: Color(0xFF1F6FEB),
-                      child: Icon(Icons.person, color: Colors.white),
-                    ),
-                    title: Text(
-                      _customers[index]['name'] ?? '',
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Contact: ${_customers[index]['contact'] ?? ''} | Location: ${_customers[index]['location'] ?? ''}',
-                          style: const TextStyle(color: Colors.white54),
-                        ),
-                        if (_customers[index]['requiredItems'] != null &&
-                            _customers[index]['requiredItems']!.isNotEmpty)
-                          Text(
-                            'Required Items: ${_customers[index]['requiredItems']}',
-                            style: const TextStyle(
-                              color: Colors.blueAccent,
-                              fontSize: 12,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 12, 4, 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const CircleAvatar(
+                                backgroundColor: Color(0xFF1F6FEB),
+                                child: Icon(Icons.person, color: Colors.white),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _customers[index]['name'] ?? '',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 16,
+                                      ),
+                                      softWrap: true,
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      'Contact: ${_customers[index]['contact'] ?? ''}',
+                                      style: const TextStyle(
+                                        color: Colors.white54,
+                                        fontSize: 14,
+                                        height: 1.3,
+                                      ),
+                                      softWrap: true,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Location: ${_customers[index]['location'] ?? ''}',
+                                      style: const TextStyle(
+                                        color: Colors.white54,
+                                        fontSize: 14,
+                                        height: 1.3,
+                                      ),
+                                      softWrap: true,
+                                    ),
+                                    if (_customers[index]['requiredItems'] !=
+                                            null &&
+                                        _customers[index]['requiredItems']!
+                                            .isNotEmpty) ...[
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        'Required Items: ${_customers[index]['requiredItems']}',
+                                        style: const TextStyle(
+                                          color: Colors.blueAccent,
+                                          fontSize: 13,
+                                        ),
+                                        softWrap: true,
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: Wrap(
+                              spacing: 4,
+                              children: [
+                                IconButton(
+                                  constraints: const BoxConstraints(
+                                    minWidth: 44,
+                                    minHeight: 44,
+                                  ),
+                                  icon: const Icon(
+                                    Icons.phone,
+                                    color: Colors.blueAccent,
+                                  ),
+                                  tooltip: 'Call',
+                                  onPressed: () => _makeCall(
+                                    _customers[index]['contact'] ?? '',
+                                  ),
+                                ),
+                                IconButton(
+                                  constraints: const BoxConstraints(
+                                    minWidth: 44,
+                                    minHeight: 44,
+                                  ),
+                                  icon: const Icon(
+                                    Icons.delete,
+                                    color: Colors.redAccent,
+                                  ),
+                                  tooltip: 'Delete',
+                                  onPressed: () => _deleteCustomer(index),
+                                ),
+                              ],
                             ),
                           ),
-                      ],
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(
-                            Icons.phone,
-                            color: Colors.blueAccent,
-                          ),
-                          onPressed: () =>
-                              _makeCall(_customers[index]['contact'] ?? ''),
-                        ),
-                        IconButton(
-                          icon: const Icon(
-                            Icons.delete,
-                            color: Colors.redAccent,
-                          ),
-                          onPressed: () => _deleteCustomer(index),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 );
